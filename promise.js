@@ -6,6 +6,7 @@ class DevPromise {
         this.status = "Pending";
         this.value = undefined;
 
+        this.all = [];
         this.chain = [];
         this.onCatch = undefined;
         this.onFinaly = undefined;
@@ -20,7 +21,7 @@ class DevPromise {
             return this;
         }
 
-        this.finaly = function(callback) {
+        this.finally = function(callback) {
             this.onFinaly = callback;
             return this;
         }
@@ -34,9 +35,12 @@ class DevPromise {
                 func(this.value);
             }, this);
 
-            if (typeof this.finalyCallback === "function") {
-                this.finalyCallback(this.value);
+            if (typeof this.finallyCallback === "function") {
+                this.finallyCallback(this.value);
             }
+
+            return value;
+
         }
 
         function reject(value) {
@@ -47,30 +51,74 @@ class DevPromise {
                 this.catchCallback(this.value);
             }
 
-            if (typeof this.finalyCallback === "function") {
-                this.finalyCallback(this.value);
+            if (typeof this.finallyCallback === "function") {
+                this.finallyCallback(this.value);
             }
 
             if (this.status == 'resolved') {
-                throw new Error("This is is resolved state")
+                throw new Error("This is resolved state")
             }
-
             return this;
-        }
-
-        function resolve(value) {
-            this.status = 'resolved';
-            this.value = value;
-            this.chain.forEach(func => {
-                func(this.value);
-            }, this);
-
-            if (typeof this.finalyCallback === "function") {
-                this.finalyCallback(this.value);
-            }
         }
     }
 
+    static resolve(value) {
+        if (value instanceof DevPromise) {
+            return new this((resolve) => {
+                resolve(value);
+            });
+        }
+
+        // if (this !== DevPromise)  {
+        //     throw new Error("Bla");
+        // }
+
+        return new this(function(resolve, reject) {
+            if (typeof resolve !== 'function' || typeof reject !== 'function') {
+                throw new TypeError('Not a function');
+            }
+            resolve(value);
+        });
+    }
+
+    static reject(value) {
+        if (value instanceof DevPromise) {
+            return value;
+        }
+        return new this(function(resolve, reject) {
+            if (typeof resolve !== 'function' || typeof reject !== 'function') {
+                throw new TypeError('Not a function');
+            }
+            return reject(value);
+        });
+    }
+
+    static all(promises) {
+        if (promises.length === 0) {
+            console.log("this", this)
+            return new this((resolve, reject) => {
+                resolve([]);
+            });
+        }
+        return new this((resolve, reject) => {
+            const results = [];
+            const count = 0;
+            promises.forEach((promise, i) => {
+                this.resolve(promise).then(res => {
+                        results.push(res);
+                        count += 1;
+
+                        if (count === promises.length) {
+                            resolve(results);
+                        }
+                    },
+                    error => {
+                        reject(error);
+                    }
+                )
+            })
+        })
+    }
 }
 module.exports = DevPromise;
 
